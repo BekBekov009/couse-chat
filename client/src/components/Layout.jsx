@@ -19,8 +19,18 @@ export default function Layout() {
             <span className="font-display text-xl tracking-wide">Coursework</span>
           </div>
           <nav className="flex items-center gap-1">
-            <NavLink to="/lessons" className={linkClass}>Lessons</NavLink>
-            <NavLink to="/chat" className={linkClass}>Chat</NavLink>
+            {user?.role === "admin" ? (
+              <>
+                <NavLink to="/admin" className={linkClass}>Admin panel</NavLink>
+                <NavLink to="/chat" className={linkClass}>Public chat</NavLink>
+              </>
+            ) : (
+              <>
+                <NavLink to="/lessons" className={linkClass}>Lessons</NavLink>
+                <NavLink to="/chat" className={linkClass}>Public chat</NavLink>
+                <NavLink to="/messages" className={linkClass}>Message teacher</NavLink>
+              </>
+            )}
           </nav>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted hidden sm:inline">Signed in as {user?.name}</span>

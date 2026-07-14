@@ -1,117 +1,126 @@
-# Coursework — real accounts + shared chat
+# Coursework — admin panel, student panel, chat
 
-A course platform with a genuine backend now: real registration/login
-(hashed passwords, JWT sessions), and a chat that every logged-in account
-can see and post to, with messages automatically deleted after 30 days.
+One login page, two experiences: signing in as the admin lands you in the
+**Admin panel** (manage courses/lessons, reply to students); signing in as
+a student lands you in the **student area** (browse lessons, public chat,
+and a private thread with the teacher).
 
-## What changed from the localStorage version
+## What's in each panel
 
-- **Accounts are real and shared.** They live on the server (in
-  `server/data/users.json`), not in one browser's storage. Anyone who
-  registers can log in from any device and see the same data.
-- **Chat is shared.** Every message a user posts is visible to every other
-  logged-in user, stored in `server/data/messages.json`, and automatically
-  pruned once it's older than 30 days (configurable).
-- **Passwords are hashed** with bcrypt — never stored in plain text.
-- **Sessions use JWT** — a signed token proves who you are on each request,
-  and survives a page refresh.
+**Admin panel** (`/admin`, admin only)
+- **Courses tab** — create/edit/delete courses, and add video, text, or
+  PDF lessons to each one.
+- **Student messages tab** — an inbox of every student who's messaged
+  you, with a reply thread for each.
 
-## Folder structure
+**Student area** (students only)
+- `/lessons` — every course and lesson the admin has published.
+- `/chat` — the public chat, visible to every logged-in student (and the
+  admin, if they check it).
+- `/messages` — a private 1:1 thread with the teacher. Only that student
+  and the admin can see it.
+
+One login form for everyone — after checking your password, the server
+tells the frontend your role, and you're sent to the right place
+automatically. There's no separate admin login page, and no way to
+register as admin through the sign-up form — only the server can create
+an admin account (see below).
+
+## How the admin account works
+
+Nobody can become admin by registering. Instead, the server creates the
+admin account itself on startup, from environment variables:
 
 ```
-course-app/
-├── server/                 ← Node/Express backend (run this first)
-│   ├── server.js
-│   ├── db.js                (JSON-file data store — no DB install needed)
-│   ├── middleware/auth.js
-│   ├── routes/auth.js       (register, login, /me)
-│   ├── routes/messages.js   (shared chat, 30-day retention)
-│   ├── data/                (auto-created: users.json, messages.json)
-│   └── .env.example
-└── client/                  ← React + Vite + Tailwind frontend
-    └── src/
-        ├── api/client.js
-        ├── context/AuthContext.jsx
-        └── components/
-            ├── Login.jsx
-            ├── Register.jsx
-            ├── Lessons.jsx
-            ├── Chat.jsx
-            ├── Layout.jsx
-            └── ProtectedRoute.jsx
+ADMIN_NAME=Бек
+ADMIN_EMAIL=collectbp@gmail.com
+ADMIN_PASSWORD=your-real-password
 ```
 
-You don't need to create any of these folders yourself — they're already
-here. Just install dependencies and run.
+Set these in `server/.env` locally, and in your host's environment
+variables (Render, etc.) for production. The server only creates the
+account if that email doesn't exist yet — safe to leave these set
+permanently, they won't overwrite anything after the first run.
 
-## What to install
+Your existing local account (email `collectbp@gmail.com`) already has
+`"role": "admin"` set directly in `server/data/users.json`, so locally
+you can just log in with your existing password right away — the
+`ADMIN_*` variables mainly matter for a fresh deploy where that file
+starts empty (see the warning below).
 
-You need **Node.js** installed first (v18+; check with `node -v`). Then,
-from two separate terminals:
+## ⚠️ Important: about deploying the JSON data files
 
-### 1. Backend
+`server/data/*.json` (users, messages, courses, direct messages) is
+**gitignored on purpose** — it holds password hashes and private
+conversations, which should never end up in a public GitHub repo.
 
+This has a real consequence: **on most hosts, a fresh deploy starts with
+empty data files.** Some hosts (like Render's free tier) also reset the
+filesystem on every redeploy — meaning courses, chat history, and
+registered students can be wiped out each time you push new code.
+
+This is fine for getting the app live and testing the flow, but it's not
+where you want to stay long-term. Two ways forward when you're ready:
+1. **Add a persistent disk** on your host (Render offers this on paid
+   instances) so `server/data/` survives redeploys.
+2. **Move to a real database** (Postgres is the common choice — Render,
+   Railway, and Supabase all offer a free tier). This only requires
+   rewriting `server/db.js`; every route calls functions like
+   `Users.findByEmail()`, so the rest of the app doesn't need to change.
+
+For now, the `ADMIN_*` env vars above mean you'll always be able to log
+in as admin even after a wipe — you'd just need to re-add courses.
+
+## Running locally
+
+Terminal 1:
 ```bash
 cd server
 npm install
-copy .env.example .env        (Windows)   — or —   cp .env.example .env   (Mac/Linux)
+cp .env.example .env      # fill in JWT_SECRET and ADMIN_* at minimum
 npm run dev
 ```
 
-`npm install` here pulls in: `express`, `cors`, `dotenv`, `bcryptjs`,
-`jsonwebtoken`, and `nodemon` (dev only) — all listed in
-`server/package.json`, so one `npm install` gets everything.
-
-This starts the API on **http://localhost:4000**.
-
-### 2. Frontend
-
-In a second terminal:
-
+Terminal 2:
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-`npm install` here pulls in: `react`, `react-dom`, `react-router-dom`, and
-(dev-only) `vite`, `@vitejs/plugin-react`, `tailwindcss`, `postcss`,
-`autoprefixer` — all listed in `client/package.json`.
+Open `http://localhost:5173` (or whatever port Vite prints).
 
-This starts the site on **http://localhost:5173**. Open that in your
-browser — the Vite dev server automatically forwards any `/api/...`
-request to your backend on port 4000, so there's no CORS setup to fight
-with in development.
+## Deploying
 
-## Using it
+- **Backend → Render** (or Railway/Fly.io): root directory `server`,
+  build command `npm install`, start command `npm start`. Set env vars:
+  `JWT_SECRET`, `MESSAGE_RETENTION_DAYS`, `FRONTEND_URL` (your Netlify
+  URL), `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+- **Frontend → Netlify**: set `VITE_API_URL` to your Render backend URL
+  plus `/api`, e.g. `https://your-app.onrender.com/api`, then redeploy.
 
-1. Go to `http://localhost:5173/register`, create an account.
-2. You're logged in — visit **Chat** and send a message.
-3. Open the site in a different browser (or an incognito window), register
-   a second account, and send a message there too — you'll see both
-   accounts' messages in the same chat, because it's now stored on the
-   server, not per-browser.
+## API overview
 
-## About the 30-day retention
+| Route | Who | Purpose |
+|---|---|---|
+| `POST /api/auth/register` | anyone | create a student account |
+| `POST /api/auth/login` | anyone | log in, get a token |
+| `GET /api/auth/me` | logged in | restore session after refresh |
+| `GET /api/courses` | logged in | list all courses + lessons |
+| `POST/PUT/DELETE /api/courses...` | admin | manage courses & lessons |
+| `GET/POST /api/messages` | logged in | public chat |
+| `GET /api/dm` | admin | inbox of student conversations |
+| `GET/POST /api/dm/:studentId` | that student, or admin | private thread |
 
-Every time someone loads the chat, and once an hour in the background, the
-server deletes any message older than 30 days (`MESSAGE_RETENTION_DAYS` in
-`server/.env`). There's no way to recover a deleted message — it's a hard
-delete, matching what you asked for.
+## Security notes
 
-## Honest limitations, and what's next
-
-- **The JSON-file store is fine for getting started and testing with a
-  handful of users**, but it rewrites the whole file on every message —
-  it will get slow with a lot of traffic or a lot of history. When you're
-  ready, swap `server/db.js` for a real database (Postgres, MySQL, SQLite
-  via `better-sqlite3`) — the rest of the app doesn't need to change, since
-  every route only talks to `db.js`'s functions.
-- **Chat uses polling** (checks for new messages every 4 seconds), not a
-  live socket connection. It works, but for instant delivery you'd want to
-  add WebSockets (e.g. `socket.io`) later — a bigger change worth doing
-  once the basics feel solid.
-- **Hosting**: right now this only runs on your own computer. To let real
-  people use it, you'll need to deploy the backend somewhere it stays
-  running (Render, Railway, Fly.io) and the frontend somewhere static
-  (Vercel, Netlify) — happy to walk through that whenever you're ready.
+- Every write-capable route (`POST`/`PUT`/`DELETE` on courses, and admin
+  DM access) is enforced **on the backend** via `requireAdmin` middleware
+  — hiding a button on the frontend is never the actual security
+  boundary, the API route itself rejects non-admins.
+- A student can only ever read/write their own DM thread — enforced
+  server-side by comparing the logged-in user's id to the thread's
+  student id, not by trusting anything the frontend sends.
+- Passwords are hashed with bcrypt; the admin's password is never stored
+  in plain text, including in `ADMIN_PASSWORD` after the account exists
+  (only used once, on first creation).

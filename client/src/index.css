@@ -28,3 +28,17 @@ body {
 .font-mono {
   font-family: "JetBrains Mono", monospace;
 }
+
+.input {
+  width: 100%;
+  background-color: #12151c;
+  border: 1px solid #2c3244;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  color: #edeae2;
+  font-size: 0.9rem;
+}
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.5);
+}

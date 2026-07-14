@@ -17,11 +17,24 @@ function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = Users.findById(payload.sub);
     if (!user) return res.status(401).json({ error: "Account no longer exists." });
-    req.user = { id: user.id, name: user.name, email: user.email };
+    req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
     next();
   } catch (err) {
     return res.status(401).json({ error: "Session expired, please log in again." });
   }
 }
 
-module.exports = { signToken, requireAuth, JWT_SECRET };
+/**
+ * Extra gate for admin-only routes. Always use AFTER requireAuth, e.g.:
+ *   router.post("/courses", requireAuth, requireAdmin, handler)
+ * This is the real security boundary — the frontend hiding a button is
+ * not enough on its own, since anyone could call the API directly.
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required." });
+  }
+  next();
+}
+
+module.exports = { signToken, requireAuth, requireAdmin, JWT_SECRET };

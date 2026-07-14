@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
       const data = await apiFetch("/auth/login", { method: "POST", body: { email, password } });
       setToken(data.token);
       setUser(data.user);
-      return { ok: true };
+      return { ok: true, user: data.user };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
       const data = await apiFetch("/auth/register", { method: "POST", body: { name, email, password } });
       setToken(data.token);
       setUser(data.user);
-      return { ok: true };
+      return { ok: true, user: data.user };
     } catch (err) {
       return { ok: false, error: err.message };
     }

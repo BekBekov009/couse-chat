@@ -20,7 +20,7 @@ export default function Login() {
       setError(result.error);
       return;
     }
-    navigate("/lessons", { replace: true });
+    navigate(result.user.role === "admin" ? "/admin" : "/lessons", { replace: true });
   }
 
   return (
